@@ -7,3 +7,6 @@
 
 # variables files, may have sens info
 *.tfvars
+
+#crashlogs
+crash.log
