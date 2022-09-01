@@ -2,48 +2,30 @@ provider "aws" {
     region = "us-west-1"
 }
 
-variable "subnet_cidr_block" {
-    description = "subnet cidr block"
-    default = "10.0.10.0/24"
-    type = string
-} 
-
-variable "vpc_cidr_block" {
-    description = "vpc cidr block"
-} 
-
-resource "aws_vpc" "development-vpc" {
+resource "aws_vpc" "myapp-vpc" {
     cidr_block = var.vpc_cidr_block
     tags = {
-        Name: "development"
-        vpc_env: "dev"
+        Name: "${var.env_prefix}-vpc"
     }
 }
 
-resource "aws_subnet" "development-subnet-1" {
-    vpc_id = aws_vpc.development-vpc.id
-    cidr_block = var.subnet_cidr_block
-    tags = {
-        Name: "subnet-development-1"
-    }
+module "myapp-subnet" {
+    source = "./modules/subnets"
+    subnet_cidr_block = var.subnet_cidr_block  
+    avail_zone = var.avail_zone
+    env_prefix = var.env_prefix
+    vpc_id = aws_vpc.myapp-vpc.id
+    default_route_table_id = aws_vpc.myapp-vpc.default_route_table_id
 }
 
-data "aws_vpc" "existing_vpc" {
-    default = true
-}
-
-resource "aws_subnet" "development-subnet-2" {
-    vpc_id = data.aws_vpc.existing_vpc.id
-    cidr_block = "172.31.48.0/20"
-    tags = {
-        Name: "subnet-default-1"
-    }
-}
-
-output "vpc-id" {
-    value = "aws_vpc.development-vpc.id"
-}
-
-output "subnet-id" {
-    value = "aws_subnet.development-subnet-1.id"
+module "myapp-server" {
+    source = "./modules/webserver"
+    vpc_id = aws_vpc.myapp-vpc.id
+    my_ip = var.my_ip
+    env_prefix = var.env_prefix
+    image_name = var.image_name
+    public_key_location = var.public_key_location
+    instance_type = var.instance_type
+    subnet_id = module.myapp-subnet.subnet
+    avail_zone = var.avail_zone
 }
